@@ -1,0 +1,88 @@
+nameOverride: alloy-upstream
+
+controller:
+  type: deployment
+  replicas: 1
+
+alloy:
+  configMap:
+    create: true
+    name: alloy-upstream-config
+    content: |
+      // ---------- Discover & scrape pod logs ----------
+      discovery.kubernetes "pods" {
+        role = "pod"
+        namespaces {
+          names = ["bastion-example"]
+        }
+      }
+
+      // Relabel discovered targets to create Loki-friendly labels and file paths
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          action        = "replace"
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          action        = "replace"
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          action        = "replace"
+          target_label  = "container"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          action        = "replace"
+          target_label  = "app"
+        }
+
+        // "job" = "<namespace>/<container_name>"
+        rule {
+          source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_container_name"]
+          action        = "replace"
+          target_label  = "job"
+          separator     = "/"
+          replacement   = "$1"
+        }
+
+        // "__path__" = "/var/log/pods/*<pod_uid>/*.log"
+        rule {
+          source_labels = ["__meta_kubernetes_pod_uid", "__meta_kubernetes_pod_container_name"]
+          action        = "replace"
+          target_label  = "__path__"
+          separator     = "/"
+          replacement   = "/var/log/pods/*$1/*.log"
+        }
+
+        // "container_runtime" parsed from container id
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_id"]
+          action        = "replace"
+          target_label  = "container_runtime"
+          regex         = "^(\\S+):\\/\\/.+$"
+          replacement   = "$1"
+        }
+      }
+
+      // Tail stdout; now route through the json_promote process
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.write.to_bastion.receiver]
+      }
+
+      // ---------- Send Loki logs to bastion (HTTP push) ----------
+      loki.write "to_bastion" {
+        endpoint {
+          url = "http://downstream-alloy-downstream:3100/loki/api/v1/push"
+        }
+        external_labels = {
+          pipeline = "bastion-demo",
+        }
+      }
+

@@ -1,0 +1,57 @@
+nameOverride: alloy-downstream
+
+controller:
+  type: deployment
+  replicas: 1
+
+ingress:
+  enabled: false
+
+service:
+  type: ClusterIP
+  annotations: {}
+
+alloy:
+  extraPorts:
+    - name: loki-push
+      port: 3100
+      targetPort: 3100
+      protocol: TCP
+
+  extraEnv:
+    - name: GC_LOKI_USERNAME
+      valueFrom:
+        secretKeyRef:
+          name: grafana-cloud-secrets
+          key: loki_username
+    - name: GC_LOKI_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: grafana-cloud-secrets
+          key: loki_api_key
+    - name: GC_LOKI_ENDPOINT
+      value: "https://logs-prod-021.grafana.net/loki/api/v1/push"
+
+  configMap:
+    create: true
+    name: alloy-bastion-config
+    content: |
+      // --- Receivers ---
+      loki.source.api "ingest" {
+        http {
+          listen_address = "0.0.0.0"
+          listen_port    = 3100
+        }
+        forward_to = [loki.write.to_grafana_logs.receiver]
+      }
+
+      // --- Loki -> Grafana Cloud Logs (uses Loki creds) ---
+      loki.write "to_grafana_logs" {
+        endpoint {
+          url = sys.env("GC_LOKI_ENDPOINT")
+          basic_auth {
+            username = sys.env("GC_LOKI_USERNAME")
+            password = sys.env("GC_LOKI_API_KEY")
+          }
+        }
+      }
