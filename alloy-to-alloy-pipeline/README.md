@@ -7,19 +7,15 @@ The instructions below allow you to deploy the upstream and downstream Alloy ins
 ## Instructions 
 
 ### Create secrets file
-(Optional) Create a namespace for the Alloy instances:
+Create a namespace for the Alloy instances:
 ```bash
 kubectl create namespace alloy-to-alloy
-```
-```bash
 kubectl apply --namespace alloy-to-alloy -f secret.yaml
 ```
 
 ### Create upstream / downstream Alloy instances
 ```bash
 helm repo add grafana https://grafana.github.io/helm-charts
-```
-```bash
 helm repo update
 ```
 Install the upstream / downstream Alloy:
@@ -45,7 +41,6 @@ kubectl apply --namespace alloy-to-alloy -f log-generator.yaml
 
 
 ## Cleaup
-
 When you're finished with this demo, you can clean up the resources by running the following commands:
 ```bash
 chmod +x teardown.sh
