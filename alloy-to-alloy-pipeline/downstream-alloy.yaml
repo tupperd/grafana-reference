@@ -1,5 +1,3 @@
-nameOverride: alloy-downstream
-
 controller:
   type: deployment
   replicas: 1

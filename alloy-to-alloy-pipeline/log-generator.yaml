@@ -4,10 +4,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: log-generator
-  namespace: bastion-example
+  namespace: alloy-to-alloy
   labels:
-    app.kubernetes.io/name: log-generator   # <-- used by your transform as service.name
-    app: log-generator                      # <-- optional alias if you also map plain 'app'
+    app.kubernetes.io/name: log-generator   
+    app: log-generator                    
 spec:
   replicas: 1
   selector:

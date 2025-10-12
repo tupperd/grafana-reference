@@ -8,45 +8,48 @@ The instructions below allow you to deploy the upstream and downstream Alloy ins
 
 ### Create secrets file
 (Optional) Create a namespace for the Alloy instances:
-```python
-kubectl create namespace <NAMESPACE>
+```bash
+kubectl create namespace alloy-to-alloy
 ```
-```python
-kubectl apply --namespace <NAMESPACE> -f secret.yaml
+```bash
+kubectl apply --namespace alloy-to-alloy -f secret.yaml
 ```
 
 ### Create upstream / downstream Alloy instances
-```python
+```bash
 helm repo add grafana https://grafana.github.io/helm-charts
 ```
-```python
+```bash
 helm repo update
 ```
-Install the downstream Alloy:
-```python
-helm install --namespace <NAMESPACE> downstream grafana/alloy
-```
-Install the upstream Alloy:
-```python
-helm install --namespace <NAMESPACE> upstream grafana/alloy
+Install the upstream / downstream Alloy:
+```bash
+helm install --namespace alloy-to-alloy downstream grafana/alloy
+helm install --namespace alloy-to-alloy upstream grafana/alloy
 ```
 Upgrade upstream / downstream Alloy instances:
-
-```python
-helm upgrade --namespace <NAMESPACE> downstream grafana/alloy -f downstream-alloy.yaml
-```
-```python
-helm upgrade --namespace <NAMESPACE> upstream grafana/alloy -f upstream-alloy.yaml
+```bash
+helm upgrade --namespace alloy-to-alloy downstream grafana/alloy -f downstream-alloy.yaml
+helm upgrade --namespace alloy-to-alloy upstream grafana/alloy -f upstream-alloy.yaml
 ```
 
 Verify that the Alloy pods are running:
-```python
-kubectl get pods --namespace <NAMESPACE>
+```bash
+kubectl get pods --namespace alloy-to-alloy
 ```
 
 ### Create log generator
-```python
-kubectl apply --namespace <NAMESPACE> -f log-generator.yaml 
+```bash
+kubectl apply --namespace alloy-to-alloy -f log-generator.yaml 
+```
+
+
+## Cleaup
+
+When you're finished with this demo, you can clean up the resources by running the following commands:
+```bash
+chmod +x teardown.sh
+./teardown.sh
 ```
 
 ## Reference Docs
