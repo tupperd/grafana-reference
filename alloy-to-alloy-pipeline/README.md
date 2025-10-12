@@ -6,12 +6,13 @@ The instructions below allow you to deploy the upstream and downstream Alloy ins
 
 ## Instructions 
 
-### Create secrets file
-Create a namespace for the Alloy instances:
+### Create secrets file / namespace 
+Create a namespace and secret:
 ```bash
 kubectl create namespace alloy-to-alloy
 kubectl apply --namespace alloy-to-alloy -f secret.yaml
 ```
+Be sure to change the loki_username and loki_api_key fields in the secret.yaml file to your actual values.
 
 ### Create upstream / downstream Alloy instances
 ```bash
@@ -39,13 +40,26 @@ kubectl get pods --namespace alloy-to-alloy
 kubectl apply --namespace alloy-to-alloy -f log-generator.yaml 
 ```
 
-
 ## Cleaup
 When you're finished with this demo, you can clean up the resources by running the following commands:
 ```bash
 chmod +x teardown.sh
 ./teardown.sh
 ```
+
+## Troubleshooting
+### Invalid credentials 401 error
+If logs do not reach Grafana Cloud, and you are seeing 401 errors in your downstream Alloy instance, check that the credentials in your secrets file are correct with this command:
+```bash
+# Replace 815040 with your stack ID and glc_xxx with your actual token     
+TS=$(date +%s%N)
+
+curl -u <LOKI_USERNAME>:<API_TOKEN> \
+  -H 'Content-Type: application/json' \
+  -X POST <GC_LOKI_ENDPOINT> \
+  -d "{\"streams\":[{\"stream\":{\"test\":\"ok\"},\"values\":[[\"$TS\",\"hello from curl\"]]}]}"
+```
+
 
 ## Reference Docs
 https://grafana.com/docs/alloy/latest/set-up/install/kubernetes/
