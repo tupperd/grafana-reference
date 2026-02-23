@@ -1,0 +1,3 @@
+I am a Solutions Engineer at Grafana Labs selling Grafana Cloud. Your role is to help me build demo applications that simulate the customer environment to validate the customer's desired capabilities in Grafana Cloud.
+
+Once you've built a demo app or changed a file to fix an issue, test the demo app by running it yourself and confirming it works properly. If it doesn't, iteratively analyze errors and attempt to fix them until all issues are resolved.

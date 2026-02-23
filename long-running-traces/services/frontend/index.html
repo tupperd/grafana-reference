@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Foo Management — Investor Portal</title>
+
+  <!-- OpenTelemetry browser SDK (W3C traceparent propagation) -->
+  <script src="https://unpkg.com/@opentelemetry/api@1.8.0/build/esm/index.js" type="module" id="otel-api-esm"></script>
+
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --accent: #f04e23;
+      --accent2: #ff8c42;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --green: #36d399;
+      --red: #f87171;
+      --yellow: #fbbf24;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Nav ── */
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo { display: flex; align-items: center; gap: .75rem; }
+    .logo-mark {
+      width: 32px; height: 32px; border-radius: 6px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 14px; color: #fff;
+    }
+    .logo-text { font-size: 1rem; font-weight: 700; letter-spacing: -.3px; }
+    .logo-sub  { font-size: .7rem; color: var(--muted); letter-spacing: .5px; }
+    #nav-user  { font-size: .85rem; color: var(--muted); }
+
+    /* ── Layout ── */
+    main { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    /* ── Login ── */
+    #login-view {
+      display: flex; align-items: center; justify-content: center;
+      min-height: calc(100vh - 56px);
+    }
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2.5rem;
+      width: 360px;
+    }
+    .login-card h2 { margin-bottom: 1.5rem; font-size: 1.4rem; }
+    .field { margin-bottom: 1rem; }
+    .field label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .4rem; }
+    .field input {
+      width: 100%; padding: .6rem .9rem;
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 6px; color: var(--text); font-size: .95rem;
+    }
+    .field input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    .hint { font-size: .75rem; color: var(--muted); margin-bottom: 1.5rem; }
+    #login-error { color: var(--red); font-size: .85rem; min-height: 1.2rem; margin-bottom: .5rem; }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+      padding: .55rem 1.2rem; border: none; border-radius: 6px;
+      font-size: .9rem; font-weight: 600; cursor: pointer; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary  { background: var(--accent); color: #fff; width: 100%; }
+    .btn-secondary { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+    .btn-batch    { background: linear-gradient(90deg, var(--accent), var(--accent2)); color: #fff; }
+
+    /* ── Dashboard ── */
+    #dashboard-view { display: none; }
+    .page-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.5rem; flex-wrap: wrap; gap: 1rem;
+    }
+    .page-title { font-size: 1.5rem; font-weight: 700; }
+    .actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+
+    /* ── Cards ── */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1.25rem;
+    }
+    .card-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+    .card-value { font-size: 1.6rem; font-weight: 700; margin-top: .25rem; }
+    .card-value.green { color: var(--green); }
+    .card-value.accent { color: var(--accent); }
+
+    /* ── Tables ── */
+    .section-title { font-size: 1rem; font-weight: 600; margin-bottom: .75rem; }
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; margin-bottom: 1.5rem;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: .65rem 1rem; text-align: left; font-size: .85rem; }
+    th { background: var(--bg); color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+    tr + tr td { border-top: 1px solid var(--border); }
+    .badge {
+      display: inline-block; padding: .2rem .55rem; border-radius: 20px;
+      font-size: .75rem; font-weight: 600;
+    }
+    .badge-settled  { background: #1e3a2e; color: var(--green); }
+    .badge-pending  { background: #2d2a1a; color: var(--yellow); }
+    .badge-validated{ background: #1a2a3a; color: #60a5fa; }
+    .badge-failed   { background: #3a1a1a; color: var(--red); }
+    .buy  { color: var(--green); font-weight: 600; }
+    .sell { color: var(--red);   font-weight: 600; }
+
+    /* ── Batch log ── */
+    #batch-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+    }
+    #batch-header {
+      padding: .9rem 1rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    #batch-log {
+      font-family: 'Courier New', monospace; font-size: .8rem;
+      background: #0a0c12; padding: 1rem;
+      max-height: 260px; overflow-y: auto; min-height: 80px;
+    }
+    .log-line { padding: .15rem 0; }
+    .log-ok     { color: var(--green); }
+    .log-warn   { color: var(--yellow); }
+    .log-error  { color: var(--red); }
+    .log-info   { color: var(--muted); }
+    .log-step   { color: #818cf8; }
+
+    /* ── Trace chip ── */
+    .trace-info {
+      font-size: .72rem; color: var(--muted); margin-top: .4rem;
+      font-family: monospace; word-break: break-all;
+    }
+
+    /* ── Spinner ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.2);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .6s linear infinite; display: inline-block;
+    }
+
+    /* ── Portfolio selector ── */
+    .port-selector { display: flex; gap: .5rem; margin-bottom: 1rem; }
+    .port-btn {
+      padding: .4rem .9rem; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--bg); color: var(--muted); cursor: pointer; font-size: .85rem;
+    }
+    .port-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+    /* ── Long-batch progress panel ── */
+    #long-batch-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; margin-top: 1rem; display: none;
+    }
+    #long-batch-panel-header {
+      padding: .9rem 1rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .lbp-meta {
+      font-size: .8rem; color: var(--muted); padding: .6rem 1rem .2rem;
+      display: flex; gap: 2rem; flex-wrap: wrap;
+    }
+    .lbp-meta span { white-space: nowrap; }
+    .lbp-progress-wrap { padding: .5rem 1rem .75rem; }
+    .lbp-progress-track {
+      height: 10px; background: var(--bg); border-radius: 999px; overflow: hidden;
+    }
+    .lbp-progress-fill {
+      height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width .8s ease;
+    }
+    .lbp-steps { padding: 0 1rem .75rem; display: flex; flex-direction: column; gap: .3rem; }
+    .lbp-step {
+      display: flex; align-items: center; gap: .6rem;
+      font-size: .82rem; padding: .3rem .5rem; border-radius: 6px;
+    }
+    .lbp-step.pending  { color: var(--muted); }
+    .lbp-step.running  { color: var(--text); background: rgba(240,78,35,.1); }
+    .lbp-step.complete { color: var(--green); }
+    .lbp-step.error    { color: var(--red); }
+    .lbp-step-icon { font-size: 1rem; width: 1.2rem; text-align: center; }
+    .lbp-step-name { flex: 1; font-family: monospace; }
+    .lbp-step-dur  { font-size: .75rem; color: var(--muted); font-family: monospace; }
+    .lbp-step.running .lbp-step-dur { color: var(--accent2); }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ NAV ═══════════════════════════ -->
+<nav>
+  <div class="logo">
+    <div class="logo-mark">AM</div>
+    <div>
+      <div class="logo-text">Foo Management</div>
+      <div class="logo-sub">INVESTOR PORTAL</div>
+    </div>
+  </div>
+  <div id="nav-user"></div>
+</nav>
+
+<!-- ═══════════════════════════ LOGIN ═══════════════════════════ -->
+<div id="login-view">
+  <div class="login-card">
+    <h2>Sign In</h2>
+    <div class="field">
+      <label>Username</label>
+      <input id="username" type="text" value="demo" autocomplete="username" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input id="password" type="password" value="demo123" autocomplete="current-password" />
+    </div>
+    <p class="hint">Demo credentials: <strong>demo / demo123</strong></p>
+    <div id="login-error"></div>
+    <button class="btn btn-primary" id="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="trace-info" id="login-trace"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ DASHBOARD ═══════════════════════════ -->
+<main>
+  <div id="dashboard-view">
+    <div class="page-header">
+      <div class="page-title" id="portfolio-title">Portfolio</div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="refreshPortfolio()">↻ Refresh</button>
+        <button class="btn btn-batch" id="batch-btn" onclick="triggerBatch()">⚡ Run EOD Batch</button>
+        <button class="btn btn-secondary" id="long-batch-btn" onclick="triggerLongBatch()">⏱ Run Long Batch</button>
+        <button class="btn btn-secondary" onclick="doLogout()">Sign Out</button>
+      </div>
+    </div>
+
+    <!-- Portfolio selector -->
+    <div class="port-selector" id="port-selector"></div>
+
+    <!-- KPI cards -->
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">AUM</div>
+        <div class="card-value accent" id="kpi-aum">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Positions</div>
+        <div class="card-value" id="kpi-positions">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Open Trades</div>
+        <div class="card-value" id="kpi-open">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Settled Today</div>
+        <div class="card-value green" id="kpi-settled">—</div>
+      </div>
+    </div>
+
+    <!-- Positions table -->
+    <div class="section-title">Holdings</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Ticker</th><th>Quantity</th><th>Cost Basis</th><th>Market Value</th><th>Unrealised P&L</th></tr>
+        </thead>
+        <tbody id="positions-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Trades table -->
+    <div class="section-title">Recent Trades</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>ID</th><th>Ticker</th><th>Side</th><th>Qty</th><th>Price</th><th>Status</th><th>Date</th></tr>
+        </thead>
+        <tbody id="trades-body"></tbody>
+      </table>
+    </div>
+
+    <!-- Batch runner panel -->
+    <div id="batch-panel">
+      <div id="batch-header">
+        <span class="section-title" style="margin:0">EOD Batch Log</span>
+        <button class="btn btn-secondary" style="font-size:.75rem;padding:.3rem .7rem" onclick="clearBatchLog()">Clear</button>
+      </div>
+      <div id="batch-log"><div class="log-line log-info">Ready — click "Run EOD Batch" to simulate the nightly close.</div></div>
+    </div>
+    <div class="trace-info" id="batch-trace"></div>
+
+    <!-- Long-batch progress panel -->
+    <div id="long-batch-panel">
+      <div id="long-batch-panel-header">
+        <span class="section-title" style="margin:0">Long Batch Progress <span style="font-size:.75rem;color:var(--muted);font-weight:400">(service.name = foo-batch-runner-long)</span></span>
+        <button class="btn btn-secondary" style="font-size:.75rem;padding:.3rem .7rem" onclick="dismissLongBatch()">Dismiss</button>
+      </div>
+      <div class="lbp-meta">
+        <span>Status: <strong id="lbp-status">—</strong></span>
+        <span>Steps: <strong id="lbp-steps-count">0 / 6</strong></span>
+        <span>Elapsed: <strong id="lbp-elapsed">—</strong></span>
+        <span>ETA: <strong id="lbp-eta">—</strong></span>
+      </div>
+      <div class="lbp-progress-wrap">
+        <div class="lbp-progress-track">
+          <div class="lbp-progress-fill" id="lbp-progress-fill" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="lbp-steps" id="lbp-steps-list"></div>
+    </div>
+    <div class="trace-info" id="lbp-trace"></div>
+  </div>
+</main>
+
+<!-- ═══════════════════════════ SCRIPT ═══════════════════════════ -->
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const state = {
+  token: null,
+  userId: null,
+  portfolioId: 1,
+  portfolios: [
+    { id: 1, label: 'Foo Capital Fund I' },
+    { id: 2, label: 'Foo Credit Opportunities' },
+  ],
+};
+
+// ─── Lightweight W3C traceparent generator ────────────────────────────────────
+function randHex(n) {
+  return [...crypto.getRandomValues(new Uint8Array(n))]
+    .map(b => b.toString(16).padStart(2,'0')).join('');
+}
+function newTraceparent() {
+  return `00-${randHex(16)}-${randHex(8)}-01`;
+}
+function traceIdFromHeader(h) { return h.split('-')[1]; }
+
+// ─── Authenticated fetch with traceparent ─────────────────────────────────────
+async function apiFetch(path, opts = {}) {
+  const tp = newTraceparent();
+  const headers = {
+    'Content-Type': 'application/json',
+    'traceparent': tp,
+    ...(state.token ? { 'Authorization': `Bearer ${state.token}` } : {}),
+    ...(opts.headers || {}),
+  };
+  const res = await fetch(path, { ...opts, headers });
+  return { res, traceparent: tp };
+}
+
+// ─── Formatters ───────────────────────────────────────────────────────────────
+function fmtUSD(n) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',
+    notation: n >= 1e6 ? 'compact' : 'standard', maximumFractionDigits: 1 }).format(n);
+}
+function fmtNum(n, d=2) { return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d }); }
+function pnlColor(v) { return v >= 0 ? 'color:var(--green)' : 'color:var(--red)'; }
+function statusBadge(s) { return `<span class="badge badge-${s}">${s}</span>`; }
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const btn = document.getElementById('login-btn');
+  const errEl = document.getElementById('login-error');
+  const traceEl = document.getElementById('login-trace');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Signing in…';
+  errEl.textContent = '';
+
+  try {
+    const { res, traceparent } = await apiFetch('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+      }),
+    });
+
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.detail || 'Login failed');
+    }
+
+    const data = await res.json();
+    state.token  = data.token;
+    state.userId = data.user_id;
+
+    traceEl.textContent = `Trace: ${traceIdFromHeader(traceparent)}`;
+
+    showDashboard();
+  } catch (e) {
+    errEl.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-view').style.display !== 'none') doLogin();
+});
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+function showDashboard() {
+  document.getElementById('login-view').style.display = 'none';
+  document.getElementById('dashboard-view').style.display = 'block';
+  document.getElementById('nav-user').textContent = `User #${state.userId}`;
+
+  // Build portfolio selector buttons
+  const sel = document.getElementById('port-selector');
+  sel.innerHTML = state.portfolios.map(p =>
+    `<button class="port-btn${p.id === state.portfolioId ? ' active' : ''}"
+      onclick="switchPortfolio(${p.id})">${p.label}</button>`
+  ).join('');
+
+  loadPortfolio();
+}
+
+function switchPortfolio(id) {
+  state.portfolioId = id;
+  document.querySelectorAll('.port-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.includes(
+      state.portfolios.find(p => p.id === id).label));
+  });
+  loadPortfolio();
+}
+
+async function loadPortfolio() {
+  await Promise.all([fetchPortfolio(), fetchTrades()]);
+}
+
+async function refreshPortfolio() { await loadPortfolio(); }
+
+async function fetchPortfolio() {
+  try {
+    const { res } = await apiFetch(`/api/portfolio/${state.portfolioId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderPortfolio(data);
+  } catch (e) {
+    console.error('Portfolio fetch failed:', e);
+  }
+}
+
+function renderPortfolio({ portfolio, positions }) {
+  document.getElementById('portfolio-title').textContent = portfolio.name;
+  document.getElementById('kpi-aum').textContent = fmtUSD(portfolio.aum);
+  document.getElementById('kpi-positions').textContent = positions.length;
+
+  document.getElementById('positions-body').innerHTML = positions.map(p => {
+    const pnl = p.market_value - (p.cost_basis * p.quantity);
+    return `<tr>
+      <td><strong>${p.ticker}</strong></td>
+      <td>${fmtNum(p.quantity, 0)}</td>
+      <td>${fmtUSD(p.cost_basis)}</td>
+      <td>${fmtUSD(p.market_value)}</td>
+      <td style="${pnlColor(pnl)}">${pnl >= 0 ? '+' : ''}${fmtUSD(pnl)}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function fetchTrades() {
+  try {
+    const { res } = await apiFetch(`/api/trades?portfolio_id=${state.portfolioId}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderTrades(data.trades);
+  } catch (e) {
+    console.error('Trades fetch failed:', e);
+  }
+}
+
+function renderTrades(trades) {
+  const open     = trades.filter(t => t.status === 'pending' || t.status === 'validated').length;
+  const settled  = trades.filter(t => t.status === 'settled').length;
+  document.getElementById('kpi-open').textContent    = open;
+  document.getElementById('kpi-settled').textContent = settled;
+
+  document.getElementById('trades-body').innerHTML = trades.map(t => `
+    <tr>
+      <td>#${t.id}</td>
+      <td><strong>${t.ticker}</strong></td>
+      <td class="${t.side.toLowerCase()}">${t.side}</td>
+      <td>${fmtNum(t.quantity, 0)}</td>
+      <td>${fmtUSD(t.price)}</td>
+      <td>${statusBadge(t.status)}</td>
+      <td>${new Date(t.trade_date).toLocaleString()}</td>
+    </tr>`
+  ).join('');
+}
+
+// ─── Batch trigger ────────────────────────────────────────────────────────────
+const STEP_NAMES = [
+  'load-trades', 'validate-positions', 'price-securities',
+  'calculate-pnl', 'generate-reports', 'close-books',
+];
+
+async function triggerBatch() {
+  const btn      = document.getElementById('batch-btn');
+  const traceEl  = document.getElementById('batch-trace');
+  const logEl    = document.getElementById('batch-log');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Running…';
+  logEl.innerHTML = '';
+
+  function logLine(msg, cls = 'log-info') {
+    const d = document.createElement('div');
+    d.className = `log-line ${cls}`;
+    d.textContent = msg;
+    logEl.appendChild(d);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  const tp = newTraceparent();
+  const traceId = traceIdFromHeader(tp);
+
+  logLine(`[${new Date().toLocaleTimeString()}] EOD batch triggered`, 'log-step');
+  logLine(`Trace ID: ${traceId}`, 'log-info');
+
+  try {
+    const headers = { 'traceparent': tp };
+    const { res } = await apiFetch('/api/batch/trigger', { method: 'POST', headers });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+    traceEl.textContent = `Trace ID: ${traceId} — search in Grafana Tempo`;
+
+    // Simulate step progress in the UI (the real trace is in Tempo)
+    const slowStep = null; // could read from a UI input for the demo
+    for (let i = 0; i < STEP_NAMES.length; i++) {
+      const step = STEP_NAMES[i];
+      const delay = 200 + Math.random() * 300;
+      await new Promise(r => setTimeout(r, delay));
+      logLine(`  ✓ Step ${i+1}/6: ${step}`, 'log-ok');
+    }
+
+    logLine(`[${new Date().toLocaleTimeString()}] Batch complete — check Grafana Tempo for waterfall`, 'log-step');
+
+    // Refresh data after batch
+    await loadPortfolio();
+
+  } catch (e) {
+    logLine(`ERROR: ${e.message}`, 'log-error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '⚡ Run EOD Batch';
+  }
+}
+
+function clearBatchLog() {
+  document.getElementById('batch-log').innerHTML =
+    '<div class="log-line log-info">Log cleared.</div>';
+  document.getElementById('batch-trace').textContent = '';
+}
+
+// ─── Long-batch progress ──────────────────────────────────────────────────────
+const longBatch = { runId: null, pollTimer: null, stepSeconds: 900, traceId: null };
+
+const STEP_ICON = { pending: '○', running: '◉', complete: '✓', error: '✗' };
+
+async function triggerLongBatch() {
+  const btn = document.getElementById('long-batch-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Starting…';
+
+  try {
+    const { res, traceparent } = await apiFetch('/api/batch/trigger-long', { method: 'POST' });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    longBatch.runId       = data.run_id;
+    longBatch.stepSeconds = data.step_seconds || 900;
+    longBatch.traceId     = traceIdFromHeader(traceparent);
+
+    document.getElementById('long-batch-panel').style.display = 'block';
+    document.getElementById('lbp-status').textContent = 'running';
+    document.getElementById('lbp-trace').textContent =
+      `Trace ID: ${longBatch.traceId} — search in Grafana Tempo`;
+
+    await pollLongBatch();
+    longBatch.pollTimer = setInterval(pollLongBatch, 5000);
+  } catch (e) {
+    alert(`Could not start long batch: ${e.message}`);
+    btn.disabled = false;
+    btn.innerHTML = '⏱ Run Long Batch';
+  }
+}
+
+async function pollLongBatch() {
+  if (!longBatch.runId) return;
+  try {
+    const { res } = await apiFetch(`/api/batch/status/${longBatch.runId}`);
+    if (!res.ok) return;
+    const d = await res.json();
+    // Keep stepSeconds in sync with server-reported value
+    if (d.step_seconds) longBatch.stepSeconds = d.step_seconds;
+    renderLongBatchProgress(d);
+
+    if (d.status === 'complete' || d.status === 'error') {
+      clearInterval(longBatch.pollTimer);
+      longBatch.pollTimer = null;
+      document.getElementById('long-batch-btn').disabled = false;
+      document.getElementById('long-batch-btn').innerHTML = '⏱ Run Long Batch';
+      if (d.status === 'complete') await loadPortfolio();
+    }
+  } catch (e) {
+    console.warn('[long-batch] poll error:', e);
+  }
+}
+
+function renderLongBatchProgress(d) {
+  const total     = d.total_steps || 6;
+  const completed = d.steps_completed || 0;
+  const pct       = Math.round((completed / total) * 100);
+
+  document.getElementById('lbp-progress-fill').style.width = `${pct}%`;
+  document.getElementById('lbp-status').textContent      = d.status;
+  document.getElementById('lbp-steps-count').textContent = `${completed} / ${total}`;
+  document.getElementById('lbp-elapsed').textContent     = fmtMs(d.total_elapsed_ms);
+
+  if (d.status === 'running') {
+    const remainingSteps = total - completed - 1;
+    const remainingMs    = (remainingSteps * longBatch.stepSeconds * 1000)
+                         + Math.max(0, longBatch.stepSeconds * 1000 - (d.step_elapsed_ms || 0));
+    document.getElementById('lbp-eta').textContent = fmtMs(remainingMs);
+  } else {
+    document.getElementById('lbp-eta').textContent = d.status === 'complete' ? 'Done' : '—';
+  }
+
+  if (!d.steps || d.steps.length === 0) return;
+  document.getElementById('lbp-steps-list').innerHTML = d.steps.map((s, i) => {
+    const icon = STEP_ICON[s.status] || '○';
+    let durText = '';
+    if (s.status === 'complete' && s.duration_ms != null) {
+      durText = fmtMs(s.duration_ms);
+    } else if (s.status === 'running') {
+      durText = `${fmtMs(d.step_elapsed_ms)} / ~${fmtMs(longBatch.stepSeconds * 1000)}`;
+    }
+    return `<div class="lbp-step ${s.status}">
+      <span class="lbp-step-icon">${icon}</span>
+      <span class="lbp-step-name">Step ${i+1}: ${s.name}</span>
+      <span class="lbp-step-dur">${durText}</span>
+    </div>`;
+  }).join('');
+}
+
+function fmtMs(ms) {
+  if (ms == null || isNaN(ms)) return '—';
+  const s = Math.floor(ms / 1000);
+  if (s < 60)  return `${s}s`;
+  const m = Math.floor(s / 60), rs = s % 60;
+  if (m < 60)  return `${m}m ${rs}s`;
+  return `${Math.floor(m/60)}h ${m%60}m`;
+}
+
+function dismissLongBatch() {
+  if (longBatch.pollTimer) { clearInterval(longBatch.pollTimer); longBatch.pollTimer = null; }
+  document.getElementById('long-batch-panel').style.display = 'none';
+  document.getElementById('lbp-trace').textContent = '';
+  document.getElementById('long-batch-btn').disabled = false;
+  document.getElementById('long-batch-btn').innerHTML = '⏱ Run Long Batch';
+}
+
+// ─── Logout ───────────────────────────────────────────────────────────────────
+function doLogout() {
+  state.token = null; state.userId = null;
+  document.getElementById('dashboard-view').style.display = 'none';
+  document.getElementById('login-view').style.display = 'flex';
+  document.getElementById('nav-user').textContent = '';
+  document.getElementById('login-error').textContent = '';
+  document.getElementById('login-trace').textContent = '';
+}
+</script>
+</body>
+</html>

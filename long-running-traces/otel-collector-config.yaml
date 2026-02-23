@@ -1,0 +1,40 @@
+extensions:
+  basicauth/grafana:
+    client_auth:
+      username: ${GRAFANA_CLOUD_INSTANCE_ID}
+      password: ${GRAFANA_CLOUD_API_KEY}
+
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    send_batch_size: 512
+    timeout: 5s
+
+exporters:
+  # otlphttp accepts a full HTTPS URL (Grafana Cloud gateway is HTTP-based, not gRPC)
+  otlphttp/grafana:
+    endpoint: ${GRAFANA_CLOUD_OTLP_ENDPOINT}
+    auth:
+      authenticator: basicauth/grafana
+
+  # Debug exporter — logs spans to stdout so you can verify locally
+  debug:
+    verbosity: basic
+
+service:
+  extensions: [basicauth/grafana, health_check]
+  pipelines:
+    traces:
+      receivers:  [otlp]
+      processors: [batch]
+      exporters:  [otlphttp/grafana, debug]

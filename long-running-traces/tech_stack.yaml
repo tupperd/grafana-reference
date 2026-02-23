@@ -1,0 +1,51 @@
+customer: "Foo Management (from discovery transcript)"
+environment_profile:
+  hosting:
+    primary: "VMware vSphere (80-90% of workloads)"
+    secondary: "Kubernetes (~10% of workloads)"
+    also: "a few remaining physical servers"
+  platform_bias: "Microsoft-heavy enterprise stack"
+  databases:
+    primary: "Microsoft SQL Server"
+    secondary:
+      - "MySQL"
+      - "MariaDB"
+    analytics_platforms:
+      - "Snowflake"
+      - "Microsoft Fabric"
+  applications:
+    nature: "Mostly commercial off-the-shelf (COTS) / 'canned' vendor applications with light customization; limited code access"
+    examples_named:
+      - "Wall Street Office (WSO)"
+      - "Salesforce"
+      - "ERP system(s)"
+      - "EDM system(s)"
+      - "Microsoft Office / Excel-heavy workflows"
+    access_constraints:
+      - "Many apps are web-based; deep code-level instrumentation may not be possible for vendor SaaS/COTS"
+      - "Preference for visibility without needing application source code"
+  batch_and_workflows:
+    critical_process: "Nightly end-of-day batch chain that closes daily trades/portfolio transactions"
+    implementation: "Mostly in-house scripts + orchestration/daisy-chaining; some Python mentioned"
+    monitoring_need: "Track step-by-step completion times, lateness vs SLA, dependency impact on downstream steps"
+  observability_current_state:
+    monitoring_tool_outgrown: "ManageEngine (basic up/down; limited app/network visibility)"
+    logging_security:
+      primary: "Splunk heavily used for security"
+      secondary: "Elasticsearch exists but lightly used (skillset attrition)"
+  observability_goal_state:
+    priorities:
+      - "Correlate end-user experience -> app -> database -> infra/network to explain WHY an app went down/slow"
+      - "Fast onboarding across acquisitions; consistent visibility across mixed environments"
+demo_app_requirements:
+  must_show:
+    - "Web UI user journey + synthetic checks (login + key transaction)"
+    - "Backend API with distributed traces"
+    - "Database dependency with SQL Server (preferred) and optionally MySQL/MariaDB"
+    - "Infrastructure correlation signals (VMware-like host/VM metrics)"
+    - "Nightly batch workflow with multiple dependent steps emitting metrics + logs + (optional) traces"
+  nice_to_show:
+    - "Coexistence with Splunk (security logs remain in Splunk; dashboards correlate)"
+  avoid_overemphasis:
+    - "Deep Kubernetes-first demo (K8s is minority here)"
+    - "AI-first pitch; they care more about correlation/root cause than flashy AI"

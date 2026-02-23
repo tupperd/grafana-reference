@@ -1,0 +1,116 @@
+# ─── Shared environment defaults ──────────────────────────────────────────────
+x-db-env: &db-env
+  MSSQL_HOST: sqlserver
+  MSSQL_PORT: "1433"
+  MSSQL_USER: sa
+  MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-FooDemo!2024}
+  MSSQL_DB: foo
+
+x-otel-env: &otel-env
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+
+services:
+
+  # ── SQL Server 2022 ─────────────────────────────────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    # SQL Server 2022 defaults to the non-root 'mssql' user, which cannot create
+    # directories at the container root (/.system, /log, etc.) on Docker Desktop
+    # for Mac. Running as root is the standard workaround for dev/demo environments.
+    user: root
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: ${MSSQL_SA_PASSWORD:-FooDemo!2024}
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "${MSSQL_SA_PASSWORD:-FooDemo!2024}" -Q "SELECT 1" -C -b
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # ── DB seeder (runs init.sql once then exits) ────────────────────────────────
+  # Uses the same MSSQL image so sqlcmd is guaranteed to be present and compatible.
+  db-seed:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-FooDemo!2024}
+    volumes:
+      - ./services/db-init:/init:ro
+    entrypoint: ["/bin/bash", "-c", "/opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P \"$$MSSQL_SA_PASSWORD\" -i /init/init.sql -C -b"]
+    restart: "no"
+
+  # ── OTel Collector ────────────────────────────────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel/config.yaml"]
+    environment:
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT}
+      GRAFANA_CLOUD_INSTANCE_ID: ${GRAFANA_CLOUD_INSTANCE_ID}
+      GRAFANA_CLOUD_API_KEY: ${GRAFANA_CLOUD_API_KEY}
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+
+  # ── Foo API ──────────────────────────────────────────────────────────────────
+  foo-api:
+    build:
+      context: ./services/api
+      dockerfile: Dockerfile
+    environment:
+      <<: [*db-env, *otel-env]
+      OTEL_SERVICE_NAME: foo-api
+      BATCH_SERVICE_URL: http://foo-batch:8001/run
+      BATCH_SLOW_STEP: ${BATCH_SLOW_STEP:-}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  # ── Foo Batch Runner ─────────────────────────────────────────────────────────
+  foo-batch:
+    build:
+      context: ./services/batch
+      dockerfile: Dockerfile
+    environment:
+      <<: [*db-env, *otel-env]
+      OTEL_SERVICE_NAME: foo-batch-runner
+      BATCH_SLOW_STEP: ${BATCH_SLOW_STEP:-}
+      LONG_BATCH_STEP_SECONDS: ${LONG_BATCH_STEP_SECONDS:-900}
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    ports:
+      - "8001:8001"
+    restart: unless-stopped
+
+  # ── Foo Frontend (Nginx) ─────────────────────────────────────────────────────
+  foo-frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - foo-api
+    restart: unless-stopped
+
+volumes:
+  sqlserver-data:
