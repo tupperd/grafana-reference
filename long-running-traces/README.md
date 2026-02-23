@@ -1,7 +1,6 @@
 # Foo Management — Grafana Cloud OTel Tracing Demo
 
-Simulates Foo Management's on-prem environment (SQL Server, Python API, nightly batch) with
-full OpenTelemetry distributed tracing flowing to **Grafana Cloud Tempo**.
+Simulates nightly batch jobs with full OpenTelemetry distributed tracing flowing to **Grafana Cloud Tempo**.
 
 ```
 Browser (traceparent header)
@@ -52,11 +51,10 @@ Login with: `demo` / `demo123`
 ---
 
 ## View in Grafana Cloud Tempo
-
 1. Open **Grafana Cloud → Explore → Tempo**
 2. Filter by service name:
-   - `{ service.name = "foo-api" }`
-   - `{ service.name = "foo-batch-runner" }`
+   - `{ resource.service.name = "foo-api" }`
+   - `{ resource.service.name = "foo-batch-runner" }`
 3. Click any trace to see the full waterfall
 
 ### Useful TraceQL queries
@@ -125,12 +123,3 @@ POST /api/batch/trigger            → fires EOD batch
   query, showing exact SQL text and duration inside each API span.
 - **Batch span hierarchy**: `eod-batch-close` (parent) → 6 named child spans, each
   carrying `foo.batch.*` attributes for TraceQL filtering.
-
----
-
-## Phase 2 (not in scope here)
-
-The same OTel collector pipeline can be extended for:
-- **Metrics → Grafana Cloud Mimir**: add `prometheusremotewrite` exporter
-- **Logs → Grafana Cloud Loki**: add `loki` exporter + Python logging handler
-- **Dashboards**: import pre-built Grafana dashboards for APM overview
