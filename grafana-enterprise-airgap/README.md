@@ -2,6 +2,8 @@
 
 Two-phase workflow: **prepare** all artifacts on a connected machine, then **deploy** from the bundle with no network (Option B from the practice plan).
 
+NOTE: This demo uses specific versions of Grafana Enterprise and the JIRA plugin to avoid version / dependency conflicts. When implementing this in practice, it is advisable to use the latest compatible version of GE and the JIRA plugin.
+
 ## Prerequisites
 
 - Docker
