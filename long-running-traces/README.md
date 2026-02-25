@@ -7,9 +7,11 @@ Browser (traceparent header)
   └─► foo-api  (FastAPI + SQLAlchemy auto-instrumentation)
         ├─► sqlserver  (SQL Server 2022)
         └─► foo-batch  (port 8001)
-              ├─► foo-batch-runner       (6-step EOD close; auto-runs every 60 s + on-demand)
+              ├─► foo-batch-runner        (6-step EOD close; auto-runs every 60 s + on-demand)
               │     └─► sqlserver
-              └─► foo-batch-runner-long  (on-demand; ~15 min/step; live status polling)
+              ├─► foo-batch-runner-long   (on-demand; ~15 min/step; live status polling)
+              │     └─► sqlserver
+              └─► foo-batch-runner-links  (on-demand; OTel span links; independent root spans)
                     └─► sqlserver
 
 All services ──► otel-collector ──► Grafana Cloud Tempo
@@ -47,8 +49,9 @@ Login with: `demo` / `demo123`
 | Action | Trace generated |
 |---|---|
 | Login + view portfolio | `foo-api` spans → SQL Server queries |
-| Click **Run EOD Batch** | `foo-batch-runner` → 6-step waterfall |
+| Click **Run EOD Batch** | `foo-batch-runner` → 6-step waterfall (parent→child hierarchy) |
 | Click **Run Long Batch** | `foo-batch-runner-long` → 6-step waterfall (~15 min/step); UI polls live status |
+| Click **⛓ Span Links Batch** | `foo-batch-runner-links` → 7 independent root spans correlated via OTel span links |
 | Automatic (every 60s) | `foo-batch-runner` batch runs on a loop in the background |
 
 ---
@@ -59,7 +62,9 @@ Login with: `demo` / `demo123`
    - `{ resource.service.name = "foo-api" }`
    - `{ resource.service.name = "foo-batch-runner" }`
    - `{ resource.service.name = "foo-batch-runner-long" }`
+   - `{ resource.service.name = "foo-batch-runner-links" }`
 3. Click any trace to see the full waterfall
+4. For span links: open the `batch-coordinator` span — the **Links** section lists all 6 step spans; click any to jump to that step's standalone root trace
 
 ### Useful TraceQL queries
 ```
@@ -80,6 +85,12 @@ Login with: `demo` / `demo123`
 
 # Long batch by run ID
 { .foo.batch.run_id = "<run_id>" }
+
+# All spans for a links batch run (coordinator + all 6 steps)
+{ resource.service.name = "foo-batch-runner-links" && span.foo.batch.run_id = "<run_id>" }
+
+# Find all coordinator spans
+{ resource.service.name = "foo-batch-runner-links" && name = "batch-coordinator" }
 ```
 
 ---
@@ -130,6 +141,7 @@ GET  /api/trades?portfolio_id={id}     → recent trades
 POST /api/batch/trigger                → fires regular EOD batch (foo-batch-runner)
 POST /api/batch/trigger-long           → fires long-running batch (foo-batch-runner-long)
 GET  /api/batch/status/{run_id}        → live step status for a long batch run
+POST /api/batch/trigger-links          → fires span-links batch (foo-batch-runner-links); returns { run_id, trace_id }
 ```
 
 ---
@@ -149,3 +161,11 @@ GET  /api/batch/status/{run_id}        → live step status for a long batch run
   `service.name = foo-batch-runner-long` so it appears as its own service in Tempo.
   The UI polls `/api/batch/status/{run_id}` every 5 s to render live step progress.
   Step duration is controlled by `LONG_BATCH_STEP_SECONDS` (default 900 = 15 min).
+- **Span links batch**: Demonstrates the OTel [span links](https://opentelemetry.io/docs/concepts/signals/traces/#span-links)
+  pattern for async/producer-consumer workflows. A `batch-coordinator` span is created first
+  (its trace ID is returned immediately to the UI). Each of the 6 steps then starts as an
+  **independent root span** in its own trace, carrying a `Link` back to the coordinator's
+  `SpanContext`. No parent-child relationship exists — the spans are correlated purely via
+  links. In Tempo, open the coordinator span to see the Links section and navigate between
+  related traces. Compare with the regular batch waterfall to demonstrate the difference
+  between hierarchical and link-based trace correlation.

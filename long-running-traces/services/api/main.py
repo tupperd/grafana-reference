@@ -260,6 +260,22 @@ def trigger_long_batch(creds: HTTPAuthorizationCredentials = Depends(security)):
             raise HTTPException(status_code=502, detail=f"Batch service error: {exc}")
 
 
+@app.post("/api/batch/trigger-links")
+def trigger_links_batch(creds: HTTPAuthorizationCredentials = Depends(security)):
+    _verify_token(creds)
+    with tracer.start_as_current_span("foo.batch.trigger_links") as span:
+        try:
+            resp = _requests.post(f"{BATCH_BASE_URL}/run-links", timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            span.set_attribute("foo.batch.run_id",   data.get("run_id", ""))
+            span.set_attribute("foo.batch.trace_id", data.get("trace_id", ""))
+            return data
+        except Exception as exc:
+            span.record_exception(exc)
+            raise HTTPException(status_code=502, detail=f"Batch service error: {exc}")
+
+
 @app.get("/api/batch/status/{run_id}")
 def get_long_batch_status(
     run_id: str,

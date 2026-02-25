@@ -25,11 +25,12 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from opentelemetry import trace
+from opentelemetry import context as otel_context
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource, SERVICE_NAME
-from opentelemetry.trace import SpanKind, StatusCode
+from opentelemetry.trace import SpanKind, StatusCode, Link
 from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -56,6 +57,14 @@ long_provider.add_span_processor(
     BatchSpanProcessor(OTLPSpanExporter(endpoint=OTEL_ENDPOINT, insecure=True))
 )
 long_tracer = long_provider.get_tracer("foo-batch-runner-long")
+
+# ─── OTel — links batch (service.name = foo-batch-runner-links) ─────────────
+links_resource = Resource.create({SERVICE_NAME: "foo-batch-runner-links"})
+links_provider = TracerProvider(resource=links_resource)
+links_provider.add_span_processor(
+    BatchSpanProcessor(OTLPSpanExporter(endpoint=OTEL_ENDPOINT, insecure=True))
+)
+links_tracer = links_provider.get_tracer("foo-batch-runner-links")
 
 # ─── Database ─────────────────────────────────────────────────────────────────
 MSSQL_HOST = os.environ.get("MSSQL_HOST", "sqlserver")
@@ -339,6 +348,64 @@ def run_eod_batch_long(run_id: str):
     logger.info(f"[long:{run_id}] Long EOD batch complete.")
 
 
+# ─── Links-batch orchestrator (each step = independent root span with link) ───
+
+def run_eod_batch_links(run_id: str, coordinator_span):
+    """Each step is an independent root span linked to coordinator_span."""
+    logger.info(f"[links:{run_id}] Starting links EOD batch")
+    db = SessionLocal()
+    pnl_data = []
+    coordinator_ctx = coordinator_span.get_span_context()
+
+    step_funcs = {
+        "load-trades":        lambda db, sp: step_load_trades(db, sp),
+        "validate-positions": lambda db, sp: step_validate_positions(db, sp),
+        "price-securities":   lambda db, sp: step_price_securities(db, sp),
+        "calculate-pnl":      lambda db, sp: (pnl_data.extend(step_calculate_pnl(db, sp) or []) or None),
+        "generate-reports":   lambda db, sp: step_generate_reports(db, sp, pnl_data),
+        "close-books":        lambda db, sp: step_close_books(db, sp),
+    }
+
+    try:
+        for idx, step_name in enumerate(STEPS, start=1):
+            empty_ctx = otel_context.Context()   # no parent → root span
+            step_span = links_tracer.start_span(
+                step_name,
+                context=empty_ctx,
+                kind=SpanKind.INTERNAL,
+                links=[Link(coordinator_ctx)],
+                attributes={
+                    "foo.batch.step":     step_name,
+                    "foo.batch.step_num": idx,
+                    "foo.batch.run_id":   run_id,
+                },
+            )
+            token = otel_context.attach(trace.set_span_in_context(step_span))
+            t0 = time.time()
+            try:
+                time.sleep(1)
+                step_funcs[step_name](db, step_span)
+                duration_ms = (time.time() - t0) * 1000
+                step_span.set_attribute("foo.batch.duration_ms", round(duration_ms, 1))
+                step_span.set_attribute("foo.batch.status", "success")
+                logger.info(f"[links:{run_id}] step {idx}/{len(STEPS)} {step_name} complete")
+            except Exception as exc:
+                step_span.record_exception(exc)
+                step_span.set_status(StatusCode.ERROR, str(exc))
+                step_span.set_attribute("foo.batch.status", "error")
+                logger.error(f"[links:{run_id}] step {idx} {step_name} FAILED: {exc}")
+                db.rollback()
+            finally:
+                otel_context.detach(token)
+                step_span.end()
+    finally:
+        db.close()
+        coordinator_span.set_attribute("foo.batch.run_id",     run_id)
+        coordinator_span.set_attribute("foo.batch.step_count", len(STEPS))
+        coordinator_span.end()
+        logger.info(f"[links:{run_id}] Links EOD batch complete.")
+
+
 # ─── HTTP app ─────────────────────────────────────────────────────────────────
 http_app = FastAPI()
 
@@ -370,6 +437,20 @@ def trigger_long():
     t = threading.Thread(target=run_eod_batch_long, args=(run_id,), daemon=True)
     t.start()
     return {"run_id": run_id, "step_seconds": LONG_BATCH_STEP_SECONDS}
+
+
+@http_app.post("/run-links")
+def trigger_links():
+    run_id = str(uuid.uuid4())
+    coordinator_span = links_tracer.start_span(
+        "batch-coordinator",
+        kind=SpanKind.INTERNAL,
+        attributes={"foo.batch.mode": "span-links", "foo.batch.run_id": run_id},
+    )
+    coordinator_trace_id = format(coordinator_span.get_span_context().trace_id, "032x")
+    t = threading.Thread(target=run_eod_batch_links, args=(run_id, coordinator_span), daemon=True)
+    t.start()
+    return {"run_id": run_id, "trace_id": coordinator_trace_id}
 
 
 @http_app.get("/status/{run_id}")

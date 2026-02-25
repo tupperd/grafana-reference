@@ -209,6 +209,39 @@
     .lbp-step-name { flex: 1; font-family: monospace; }
     .lbp-step-dur  { font-size: .75rem; color: var(--muted); font-family: monospace; }
     .lbp-step.running .lbp-step-dur { color: var(--accent2); }
+
+    /* ── Links-batch panel ── */
+    #links-batch-panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; margin-top: 1rem; display: none;
+    }
+    #links-batch-panel-header {
+      padding: .9rem 1rem; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .lnk-meta {
+      font-size: .8rem; color: var(--muted); padding: .6rem 1rem .4rem;
+    }
+    .lnk-coordinator {
+      font-family: monospace; font-size: .78rem; color: var(--accent2);
+      word-break: break-all;
+    }
+    .lnk-edu {
+      font-size: .78rem; color: var(--muted); padding: .2rem 1rem .6rem;
+      border-bottom: 1px solid var(--border); line-height: 1.5;
+    }
+    .lnk-steps { padding: .5rem 1rem .75rem; display: flex; flex-direction: column; gap: .3rem; }
+    .lnk-step {
+      display: flex; align-items: center; gap: .6rem;
+      font-size: .82rem; padding: .3rem .5rem; border-radius: 6px;
+    }
+    .lnk-step.pending  { color: var(--muted); }
+    .lnk-step.running  { color: var(--text); background: rgba(240,78,35,.1); }
+    .lnk-step.complete { color: var(--green); }
+    .lnk-step-icon { font-size: 1rem; width: 1.2rem; text-align: center; }
+    .lnk-step-name { flex: 1; font-family: monospace; }
+    .lnk-step-tag  { font-size: .72rem; color: var(--muted); font-family: monospace; }
+    .lnk-step.complete .lnk-step-tag { color: #818cf8; }
   </style>
 </head>
 <body>
@@ -253,6 +286,7 @@
         <button class="btn btn-secondary" onclick="refreshPortfolio()">↻ Refresh</button>
         <button class="btn btn-batch" id="batch-btn" onclick="triggerBatch()">⚡ Run EOD Batch</button>
         <button class="btn btn-secondary" id="long-batch-btn" onclick="triggerLongBatch()">⏱ Run Long Batch</button>
+        <button class="btn btn-secondary" id="links-batch-btn" onclick="triggerLinksBatch()">⛓ Span Links Batch</button>
         <button class="btn btn-secondary" onclick="doLogout()">Sign Out</button>
       </div>
     </div>
@@ -332,6 +366,24 @@
       <div class="lbp-steps" id="lbp-steps-list"></div>
     </div>
     <div class="trace-info" id="lbp-trace"></div>
+
+    <!-- Span-links batch panel -->
+    <div id="links-batch-panel">
+      <div id="links-batch-panel-header">
+        <span class="section-title" style="margin:0">Span Links Batch <span style="font-size:.75rem;color:var(--muted);font-weight:400">(service.name = foo-batch-runner-links)</span></span>
+        <button class="btn btn-secondary" style="font-size:.75rem;padding:.3rem .7rem" onclick="dismissLinksBatch()">Dismiss</button>
+      </div>
+      <div class="lnk-meta">
+        Coordinator trace ID: <span class="lnk-coordinator" id="lnk-coordinator-id">—</span>
+      </div>
+      <div class="lnk-edu">
+        Each step runs as an <strong>independent root span</strong> in its own trace — no parent/child hierarchy.
+        A <code>Link</code> on each step points back to the coordinator span, enabling cross-trace correlation in Tempo.
+        Compare with the regular batch waterfall: here you'll see 7 separate traces joined by links instead of nested children.
+      </div>
+      <div class="lnk-steps" id="lnk-steps-list"></div>
+    </div>
+    <div class="trace-info" id="lnk-trace"></div>
   </div>
 </main>
 
@@ -685,6 +737,82 @@ function dismissLongBatch() {
   document.getElementById('lbp-trace').textContent = '';
   document.getElementById('long-batch-btn').disabled = false;
   document.getElementById('long-batch-btn').innerHTML = '⏱ Run Long Batch';
+}
+
+// ─── Span-links batch ────────────────────────────────────────────────────────
+const linksBatch = { runId: null, animTimer: null, traceId: null, stepIdx: 0 };
+
+async function triggerLinksBatch() {
+  const btn = document.getElementById('links-batch-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Starting…';
+
+  try {
+    const { res, traceparent } = await apiFetch('/api/batch/trigger-links', { method: 'POST' });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    linksBatch.runId   = data.run_id;
+    linksBatch.traceId = data.trace_id || traceIdFromHeader(traceparent);
+    linksBatch.stepIdx = 0;
+
+    document.getElementById('links-batch-panel').style.display = 'block';
+    document.getElementById('lnk-coordinator-id').textContent  = linksBatch.traceId;
+    document.getElementById('lnk-trace').textContent =
+      `Coordinator trace ID: ${linksBatch.traceId} — search in Grafana Tempo`;
+
+    renderLinksBatchSteps('running', 0);
+
+    // Animate step completion every ~1.2s (server takes ~1s/step)
+    linksBatch.animTimer = setInterval(() => {
+      linksBatch.stepIdx++;
+      if (linksBatch.stepIdx >= STEP_NAMES.length) {
+        clearInterval(linksBatch.animTimer);
+        linksBatch.animTimer = null;
+        renderLinksBatchSteps('complete', STEP_NAMES.length);
+        document.getElementById('links-batch-btn').disabled = false;
+        document.getElementById('links-batch-btn').innerHTML = '⛓ Span Links Batch';
+        loadPortfolio();
+      } else {
+        renderLinksBatchSteps('running', linksBatch.stepIdx);
+      }
+    }, 1200);
+
+  } catch (e) {
+    alert(`Could not start links batch: ${e.message}`);
+    btn.disabled = false;
+    btn.innerHTML = '⛓ Span Links Batch';
+  }
+}
+
+function renderLinksBatchSteps(status, currentIdx) {
+  document.getElementById('lnk-steps-list').innerHTML = STEP_NAMES.map((name, i) => {
+    let stepStatus, icon, tag;
+    if (i < currentIdx) {
+      stepStatus = 'complete'; icon = '✓'; tag = 'root span + link →coordinator';
+    } else if (i === currentIdx && status === 'running') {
+      stepStatus = 'running'; icon = '◉'; tag = 'running…';
+    } else if (i === currentIdx && status === 'complete') {
+      stepStatus = 'complete'; icon = '✓'; tag = 'root span + link →coordinator';
+    } else {
+      stepStatus = 'pending'; icon = '○'; tag = '';
+    }
+    return `<div class="lnk-step ${stepStatus}">
+      <span class="lnk-step-icon">${icon}</span>
+      <span class="lnk-step-name">Step ${i+1}: ${name}</span>
+      <span class="lnk-step-tag">${tag}</span>
+    </div>`;
+  }).join('');
+}
+
+function dismissLinksBatch() {
+  if (linksBatch.animTimer) { clearInterval(linksBatch.animTimer); linksBatch.animTimer = null; }
+  document.getElementById('links-batch-panel').style.display = 'none';
+  document.getElementById('lnk-trace').textContent = '';
+  document.getElementById('links-batch-btn').disabled = false;
+  document.getElementById('links-batch-btn').innerHTML = '⛓ Span Links Batch';
 }
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
