@@ -1,0 +1,10 @@
+# OCI credentials
+.oci/
+*.pem
+*.key
+
+# Environment files
+.env
+.env.*
+*secrets*
+*credentials*
