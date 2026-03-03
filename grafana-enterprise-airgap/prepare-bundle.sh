@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUNDLE_DIR="${SCRIPT_DIR}/airgap-bundle"
 IMAGE_NAME="grafana/grafana-enterprise"
-IMAGE_TAG="${GRAFANA_VERSION:-11.0.0}"
+IMAGE_TAG="${GRAFANA_VERSION:-12.4.0}"
 IMAGE_SPEC="${IMAGE_NAME}:${IMAGE_TAG}"
 LICENSE_SRC="${SCRIPT_DIR}/license.jwt"
 
@@ -29,7 +29,7 @@ fi
 # Optional: JIRA Enterprise plugin (for airgapped testing). Use 2.3.3 for Grafana 11.0.x; 2.5.1 needs 11.6.7+.
 # Use: PREPARE_JIRA_PLUGIN=0 ./prepare-bundle.sh  (prefix form so the var is passed to this script).
 if [[ "${PREPARE_JIRA_PLUGIN:-1}" == "1" ]]; then
-  JIRA_VERSION="${JIRA_PLUGIN_VERSION:-2.3.3}"
+  JIRA_VERSION="${JIRA_PLUGIN_VERSION:-2.5.1}"
   PLUGINS_DIR="${BUNDLE_DIR}/plugins"
   mkdir -p "$PLUGINS_DIR"
   # Container is Linux; use amd64 (use linux-arm64 on ARM hosts if your image is arm64)

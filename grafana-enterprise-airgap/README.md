@@ -2,7 +2,7 @@
 
 Two-phase workflow: **prepare** all artifacts on a connected machine, then **deploy** from the bundle with no network (Option B from the practice plan).
 
-NOTE: This demo uses specific versions of Grafana Enterprise and the JIRA plugin to avoid version / dependency conflicts. When implementing this in practice, it is advisable to use the latest compatible version of GE and the JIRA plugin.
+NOTE: This demo uses specific versions of Grafana Enterprise and the JIRA plugin to avoid version / dependency conflicts. When implementing this in practice, it is advisable to use the latest compatible version of GE and the JIRA plugin. 
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ PREPARE_JIRA_PLUGIN=0 ./prepare-bundle.sh
 
 This will:
 
-- Pull and save `grafana/grafana-enterprise:11.0.0` to `airgap-bundle/grafana-enterprise.tar`
+- Pull and save `grafana/grafana-enterprise:12.4.0` to `airgap-bundle/grafana-enterprise.tar`
 - Copy `license.jwt` into `airgap-bundle/`
 - **Not** download the JIRA plugin
 
@@ -56,7 +56,7 @@ This will:
 
 - Pull and save the Grafana Enterprise image to `airgap-bundle/grafana-enterprise.tar`
 - Copy `license.jwt` into `airgap-bundle/`
-- Download the **JIRA datasource** plugin (v2.3.3, compatible with Grafana 11.0.x) into `airgap-bundle/plugins/grafana-jira-datasource/`
+- Download the **JIRA datasource** plugin (v2.5.1) into `airgap-bundle/plugins/grafana-jira-datasource/`
 
 ### 2. Run airgapped
 
@@ -78,13 +78,13 @@ The script detects `airgap-bundle/plugins` and mounts it into the container. Gra
 
   Then run `./run-airgapped.sh` as usual; all contents of `airgap-bundle/plugins/` are mounted.
 
-- **Different JIRA version:** Set `JIRA_PLUGIN_VERSION` when preparing (e.g. `2.5.1` requires Grafana 11.6.7+):
+- **Different JIRA version:** Override with `JIRA_PLUGIN_VERSION`:
 
   ```bash
-  JIRA_PLUGIN_VERSION=2.5.1 ./prepare-bundle.sh
+  JIRA_PLUGIN_VERSION=2.3.3 ./prepare-bundle.sh
   ```
 
-  Use with a matching Grafana version, e.g. `GRAFANA_VERSION=11.6.7 ./prepare-bundle.sh` (and the same when running).
+  Use with a matching Grafana version, e.g. `GRAFANA_VERSION=11.0.0 ./prepare-bundle.sh` (and the same when running).
 
 ---
 
@@ -92,9 +92,9 @@ The script detects `airgap-bundle/plugins` and mounts it into the container. Gra
 
 | Variable | Used by | Default | Description |
 |----------|---------|---------|-------------|
-| `GRAFANA_VERSION` | both | `11.0.0` | Grafana Enterprise image tag and plugin compatibility. |
+| `GRAFANA_VERSION` | both | `12.4.0` | Grafana Enterprise image tag and plugin compatibility. |
 | `PREPARE_JIRA_PLUGIN` | prepare-bundle.sh | `1` | Set to `0` to skip downloading the JIRA plugin. |
-| `JIRA_PLUGIN_VERSION` | prepare-bundle.sh | `2.3.3` | JIRA plugin version (e.g. `2.5.1` for Grafana 11.6.7+). |
+| `JIRA_PLUGIN_VERSION` | prepare-bundle.sh | `2.5.1` | JIRA datasource plugin version. |
 | `GRAFANA_CONTAINER_NAME` | run-airgapped.sh | `grafana-airgap` | Docker container name. |
 
 ---
