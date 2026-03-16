@@ -1,0 +1,15 @@
+[project]
+name = "grafana-assistant-mcp"
+version = "0.1.0"
+description = "MCP server wrapping the grafana-assistant CLI"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp[cli]>=1.0.0",
+]
+
+[project.scripts]
+grafana-assistant-mcp = "server:mcp.run"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
