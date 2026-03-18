@@ -1,0 +1,175 @@
+{
+  "id": null,
+  "uid": "sql-expr-02-partial",
+  "title": "SQL Expressions Lab — 02 Partial Example (Starter)",
+  "description": "Fill in the three ___ blanks in the SQL expression to complete the SLO breach detector.",
+  "schemaVersion": 40,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "tags": ["sql-expressions-lab", "tutorial"],
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Error Rate by Service (SQL Expression, RefID C)",
+      "description": "Live error rate % per service, derived from the SQL expression. Fill in the blanks in RefID C to populate both panels.",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
+      "datasource": { "type": "datasource", "uid": "-- Mixed --" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service) (rate(http_requests_total{status_code=~\"5..\"}[2m])) / sum by (service) (rate(http_requests_total[2m])) * 100",
+          "legendFormat": "{{service}}",
+          "instant": false,
+          "range": true,
+          "hide": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "mysql", "uid": "mysql" },
+          "rawQuery": true,
+          "rawSql": "SELECT service, error_budget_pct, p99_threshold_ms, team, tier FROM slo_targets",
+          "format": "table",
+          "hide": true
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "__expr__", "uid": "__expr__" },
+          "type": "sql",
+          "expression": "SELECT\n  A.time,\n  A.service,\n  A.__value__                                    AS error_rate_pct,\n  COALESCE(B.error_budget_pct, ___)              AS effective_slo,\n  A.__value__ > COALESCE(B.error_budget_pct, ___) AS is_breaching\nFROM A\nLEFT JOIN B ON A.service = B.service\nWHERE A.__value__ > ___",
+          "hide": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "is_breaching": true,
+              "effective_slo": true
+            },
+            "indexByName": {},
+            "renameByName": {}
+          }
+        },
+        {
+          "id": "partitionByValues",
+          "options": {
+            "fields": ["service"],
+            "naming": { "asLabels": false },
+            "keepFields": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "${__series.name}",
+          "color": { "mode": "palette-classic" },
+          "unit": "percent",
+          "decimals": 3,
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+      }
+    },
+    {
+      "id": 2,
+      "type": "state-timeline",
+      "title": "SLO Breach State by Service (SQL Expression, RefID C)",
+      "description": "One row per service — green = within SLO, red = breaching. Derived from the same SQL expression as the panel above.",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "datasource": { "type": "datasource", "uid": "-- Mixed --" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service) (rate(http_requests_total{status_code=~\"5..\"}[2m])) / sum by (service) (rate(http_requests_total[2m])) * 100",
+          "legendFormat": "{{service}}",
+          "instant": false,
+          "range": true,
+          "hide": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "mysql", "uid": "mysql" },
+          "rawQuery": true,
+          "rawSql": "SELECT service, error_budget_pct, p99_threshold_ms, team, tier FROM slo_targets",
+          "format": "table",
+          "hide": true
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "__expr__", "uid": "__expr__" },
+          "type": "sql",
+          "expression": "SELECT\n  A.time,\n  A.service,\n  A.__value__                                    AS error_rate_pct,\n  COALESCE(B.error_budget_pct, ___)              AS effective_slo,\n  A.__value__ > COALESCE(B.error_budget_pct, ___) AS is_breaching\nFROM A\nLEFT JOIN B ON A.service = B.service\nWHERE A.__value__ > ___",
+          "hide": false
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "error_rate_pct": true,
+              "effective_slo": true
+            },
+            "indexByName": {},
+            "renameByName": {}
+          }
+        },
+        {
+          "id": "partitionByValues",
+          "options": {
+            "fields": ["service"],
+            "naming": { "asLabels": false },
+            "keepFields": false
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "displayName": "${__series.name}",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "OK", "color": "green", "index": 0 }
+              }
+            },
+            {
+              "type": "value",
+              "options": {
+                "1": { "text": "BREACH", "color": "red", "index": 1 }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "alignValue": "left",
+        "rowHeight": 0.9,
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    }
+  ]
+}

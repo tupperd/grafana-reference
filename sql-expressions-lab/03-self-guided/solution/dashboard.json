@@ -1,0 +1,116 @@
+{
+  "id": null,
+  "uid": "sql-expr-03-solution",
+  "title": "SQL Expressions Lab — 03 Self-Guided Solution",
+  "description": "Full SLO health table: error rate, p99 latency, SLO targets, and pass/fail for each service.",
+  "schemaVersion": 40,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "tags": ["sql-expressions-lab", "tutorial"],
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "SLO Health Table — All Services (SQL Expression, RefID D)",
+      "description": "Joins three queries: A (Prometheus error rate), B (Prometheus p99 latency), C (MySQL SLO targets). Aggregates per service and flags which SLOs are met. 'search' has NULL SLO columns — no entry in MySQL.",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 10 },
+      "datasource": { "type": "datasource", "uid": "-- Mixed --" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service) (rate(http_requests_total{status_code=~\"5..\"}[2m])) / sum by (service) (rate(http_requests_total[2m])) * 100",
+          "legendFormat": "{{service}}",
+          "instant": false,
+          "range": true,
+          "hide": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "http_request_duration_seconds{quantile=\"0.99\"}",
+          "legendFormat": "{{service}}",
+          "instant": false,
+          "range": true,
+          "hide": true
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "mysql", "uid": "mysql" },
+          "rawQuery": true,
+          "rawSql": "SELECT service, error_budget_pct, p99_threshold_ms, team, tier FROM slo_targets",
+          "format": "table",
+          "hide": true
+        },
+        {
+          "refId": "D",
+          "datasource": { "type": "__expr__", "uid": "__expr__" },
+          "type": "sql",
+          "expression": "SELECT\n  A.service,\n  ROUND(AVG(A.__value__), 3)                        AS avg_error_rate_pct,\n  ROUND(AVG(B.__value__) * 1000, 1)                 AS avg_p99_ms,\n  C.error_budget_pct,\n  C.p99_threshold_ms,\n  AVG(A.__value__) <= C.error_budget_pct            AS error_slo_met,\n  AVG(B.__value__) * 1000 <= C.p99_threshold_ms     AS latency_slo_met\nFROM A\nJOIN B ON A.time = B.time AND A.service = B.service\nLEFT JOIN C ON A.service = C.service\nGROUP BY A.service, C.error_budget_pct, C.p99_threshold_ms\nORDER BY avg_error_rate_pct DESC",
+          "hide": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "displayMode": "auto" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "avg_error_rate_pct" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 3 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "avg_p99_ms" },
+            "properties": [
+              { "id": "unit", "value": "ms" },
+              { "id": "decimals", "value": 1 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "error_slo_met" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "green", "value": 1 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "latency_slo_met" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "green", "value": 1 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "footer": { "show": false }
+      }
+    }
+  ]
+}

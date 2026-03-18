@@ -1,0 +1,156 @@
+{
+  "id": null,
+  "uid": "sql-expr-01-worked",
+  "title": "SQL Expressions Lab — 01 Worked Example",
+  "description": "Join Prometheus error rates with MySQL SLO targets to show budget remaining per service.",
+  "schemaVersion": 40,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "tags": ["sql-expressions-lab", "tutorial"],
+  "editable": true,
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Live Error Rate by Service (Prometheus — Query A)",
+      "description": "Raw Prometheus data: error rate % per service over time. This is Query A — the time series input fed into the SQL expression below.",
+      "gridPos": { "x": 0, "y": 0, "w": 16, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service) (rate(http_requests_total{status_code=~\"5..\"}[2m])) / sum by (service) (rate(http_requests_total[2m])) * 100",
+          "legendFormat": "{{service}}",
+          "instant": false,
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "percent",
+          "decimals": 3,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "none" },
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }
+      }
+    },
+    {
+      "id": 2,
+      "type": "table",
+      "title": "SLO Targets (MySQL — Query B)",
+      "description": "Static lookup table from MySQL slo_db.slo_targets — one row per service. This is Query B. Notice 'search' is absent — it has no SLO entry.",
+      "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+      "datasource": { "type": "mysql", "uid": "mysql" },
+      "targets": [
+        {
+          "refId": "B",
+          "datasource": { "type": "mysql", "uid": "mysql" },
+          "rawQuery": true,
+          "rawSql": "SELECT service, error_budget_pct, p99_threshold_ms, team, tier FROM slo_targets",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "displayMode": "auto" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "footer": { "show": false }
+      }
+    },
+    {
+      "id": 3,
+      "type": "table",
+      "title": "SLO Compliance — Error Rate vs Budget (SQL Expression, RefID C)",
+      "description": "SQL expression joins Query A (Prometheus time series) with Query B (MySQL lookup table) on the 'service' column. JOIN (not LEFT JOIN) means only services with an SLO entry appear — 'search' is excluded because it has no row in MySQL.",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 10 },
+      "datasource": { "type": "datasource", "uid": "-- Mixed --" },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "expr": "sum by (service) (rate(http_requests_total{status_code=~\"5..\"}[2m])) / sum by (service) (rate(http_requests_total[2m])) * 100",
+          "legendFormat": "{{service}}",
+          "instant": false,
+          "range": true,
+          "hide": true
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "mysql", "uid": "mysql" },
+          "rawQuery": true,
+          "rawSql": "SELECT service, error_budget_pct, p99_threshold_ms, team, tier FROM slo_targets",
+          "format": "table",
+          "hide": true
+        },
+        {
+          "refId": "C",
+          "datasource": { "type": "__expr__", "uid": "__expr__" },
+          "type": "sql",
+          "expression": "SELECT\n  A.time,\n  A.service,\n  A.__value__                         AS error_rate_pct,\n  B.error_budget_pct                  AS slo_target_pct,\n  B.error_budget_pct - A.__value__    AS budget_remaining\nFROM A\nJOIN B ON A.service = B.service",
+          "hide": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "custom": { "align": "auto", "displayMode": "auto" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "error_rate_pct" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 3 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "slo_target_pct" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 1 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "budget_remaining" },
+            "properties": [
+              { "id": "unit", "value": "percent" },
+              { "id": "decimals", "value": 3 },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "red", "value": null },
+                    { "color": "yellow", "value": 0 },
+                    { "color": "green", "value": 0.05 }
+                  ]
+                }
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-background" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "footer": { "show": false }
+      }
+    }
+  ]
+}

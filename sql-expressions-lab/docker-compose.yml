@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  grafana:
+    build: ./grafana-build
+    container_name: sql-lab-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_FEATURE_TOGGLES_ENABLE=sqlExpressions
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=stupid123
+      - GF_AUTH_BASIC_ENABLED=true
+    volumes:
+      - ./provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - mysql
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: sql-lab-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - metrics-generator
+
+  mysql:
+    image: mysql:8
+    container_name: sql-lab-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      - MYSQL_ROOT_PASSWORD=grafana
+      - MYSQL_DATABASE=slo_db
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pgrafana"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  metrics-generator:
+    build: ./metrics-generator
+    container_name: sql-lab-metrics-generator
+    ports:
+      - "8080:8080"
+
+volumes:
+  grafana-data:
