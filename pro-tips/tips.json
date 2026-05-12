@@ -16,7 +16,7 @@
   },
   {
     "title": "Use $__rate_interval for rate() queries",
-    "body": "Hardcoding `rate(metric[5m])` breaks at long time ranges. [`rate(metric[$__rate_interval])`](https://grafana.com/blog/2020/09/28/new-in-grafana-7.2-__rate_interval-for-prometheus-rate-queries-that-just-work/) picks a window matching your [scrape interval](https://grafana.com/docs/grafana/latest/datasources/prometheus/template-variables/) and view automatically.",
+    "body": "Hardcoding `rate(metric[5m])` breaks at long ranges. [`rate(metric[$__rate_interval])`](https://grafana.com/blog/2020/09/28/new-in-grafana-7.2-__rate_interval-for-prometheus-rate-queries-that-just-work/) auto-picks a window matching your [scrape interval](https://grafana.com/docs/grafana/latest/datasources/prometheus/template-variables/).",
     "doc_url": "https://grafana.com/blog/2020/09/28/new-in-grafana-7.2-__rate_interval-for-prometheus-rate-queries-that-just-work/"
   },
   {

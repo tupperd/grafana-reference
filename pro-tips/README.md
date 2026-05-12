@@ -14,6 +14,10 @@ Catalog of Grafana Cloud onboarding pro tips, consumed by the `pro-tip-of-the-da
 }
 ```
 
+## Length budget
+
+Keep `title + ": " + body` under **240 visible characters** (markdown links count only the link text, not the URL). This guarantees the panel renders within 3 grid rows at typical viewport widths. The dashboard panel has a fixed height and will scroll/clip if a tip exceeds this budget.
+
 ## Rotation
 
 The consuming dashboard picks today's tip with `dayOfYear(now()) % count(tips)`. Add new tips to the end of the array; ordering only matters in that it determines which day each tip first appears.
