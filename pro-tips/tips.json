@@ -1,0 +1,52 @@
+[
+  {
+    "title": "Let Grafana Assistant build your first dashboard",
+    "body": "Stuck staring at a blank dashboard? Click the [Grafana Assistant](https://grafana.com/docs/grafana-cloud/machine-learning/grafana-assistant/) icon (top-right) and describe what you want to see in plain English. It writes the [PromQL](https://grafana.com/docs/grafana/latest/datasources/prometheus/query-editor/) or [LogQL](https://grafana.com/docs/loki/latest/query/) and lays out the panels for you.",
+    "doc_url": "https://grafana.com/docs/grafana-cloud/machine-learning/grafana-assistant/"
+  },
+  {
+    "title": "Drilldowns beat raw queries when you're exploring",
+    "body": "Before writing PromQL, try [Metrics Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/metrics/) under **Explore > Metrics**. Point-and-click to filter labels and break down by dimension. Same idea works for [Logs](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/logs/), [Traces](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/traces/), and [Profiles](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/profiles/).",
+    "doc_url": "https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/"
+  },
+  {
+    "title": "Logs Drilldown reads logs without LogQL",
+    "body": "[Logs Drilldown](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/logs/) auto-extracts fields and shows you [volume, patterns, and errors](https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/logs/investigate-logs/) visually. Great for the 'I just want to see what's in there' moment, no [LogQL](https://grafana.com/docs/loki/latest/query/) required.",
+    "doc_url": "https://grafana.com/docs/grafana-cloud/visualizations/simplified-exploration/logs/"
+  },
+  {
+    "title": "Use $__rate_interval for rate() queries",
+    "body": "Hardcoding `rate(metric[5m])` breaks at long time ranges. Use [`rate(metric[$__rate_interval])`](https://grafana.com/blog/2020/09/28/new-in-grafana-7.2-__rate_interval-for-prometheus-rate-queries-that-just-work/) and Grafana picks a window that matches your [scrape interval](https://grafana.com/docs/grafana/latest/datasources/prometheus/template-variables/) and panel view automatically.",
+    "doc_url": "https://grafana.com/blog/2020/09/28/new-in-grafana-7.2-__rate_interval-for-prometheus-rate-queries-that-just-work/"
+  },
+  {
+    "title": "Integrations beat hand-rolled Alloy configs",
+    "body": "[Connections > Add new connection](https://grafana.com/docs/grafana-cloud/connect-externally-hosted/) has [prebuilt integrations](https://grafana.com/docs/grafana-cloud/monitor-infrastructure/integrations/) for hundreds of systems with dashboards and alerts included. Install one before writing [Alloy](https://grafana.com/docs/alloy/latest/) config by hand.",
+    "doc_url": "https://grafana.com/docs/grafana-cloud/monitor-infrastructure/integrations/"
+  },
+  {
+    "title": "Adaptive Metrics cuts your bill without losing signal",
+    "body": "[Adaptive Metrics](https://grafana.com/docs/grafana-cloud/cost-management-and-billing/reduce-costs/metrics-costs/control-metrics-usage-via-adaptive-metrics/) aggregates high-cardinality series you aren't querying. Most stacks see 20-50% cost reduction with zero dashboard changes. Find it under [Cost Management](https://grafana.com/docs/grafana-cloud/cost-management-and-billing/).",
+    "doc_url": "https://grafana.com/docs/grafana-cloud/cost-management-and-billing/reduce-costs/metrics-costs/control-metrics-usage-via-adaptive-metrics/"
+  },
+  {
+    "title": "Annotate deploys to correlate spikes with releases",
+    "body": "Add an [annotation query](https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/annotate-visualizations/) for your CI deploy events. Vertical lines appear on every panel showing exactly when something shipped. Pairs well with [Knowledge Graph](https://grafana.com/docs/grafana-cloud/observability-as-code/knowledge-graph/) for automatic correlation.",
+    "doc_url": "https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/annotate-visualizations/"
+  },
+  {
+    "title": "Service accounts, not API keys",
+    "body": "[API keys](https://grafana.com/docs/grafana/latest/administration/api-keys/) are legacy. Use [service accounts](https://grafana.com/docs/grafana/latest/administration/service-accounts/) (**Administration > Service accounts**) with scoped permissions and rotatable [tokens](https://grafana.com/docs/grafana/latest/administration/service-accounts/#add-a-token-to-a-service-account-in-grafana). Required for new Cloud features going forward.",
+    "doc_url": "https://grafana.com/docs/grafana/latest/administration/service-accounts/"
+  },
+  {
+    "title": "Variables make one dashboard work for every environment",
+    "body": "Add a [`$env` variable](https://grafana.com/docs/grafana/latest/dashboards/variables/) (**Settings > Variables**) instead of cloning dashboards per environment. Use it in queries like `up{env=\"$env\"}`. Combine with [multi-value and 'All'](https://grafana.com/docs/grafana/latest/dashboards/variables/variable-selection-options/) options for the full effect.",
+    "doc_url": "https://grafana.com/docs/grafana/latest/dashboards/variables/"
+  },
+  {
+    "title": "Alerting: contact points are reusable, notification policies route",
+    "body": "Define a [contact point](https://grafana.com/docs/grafana/latest/alerting/configure-notifications/manage-contact-points/) (Slack, PagerDuty, email) once. Then build [notification policies](https://grafana.com/docs/grafana/latest/alerting/configure-notifications/create-notification-policy/) that match labels and route alerts to the right team. Don't create a new contact point per alert.",
+    "doc_url": "https://grafana.com/docs/grafana/latest/alerting/configure-notifications/"
+  }
+]
