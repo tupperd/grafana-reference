@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wardrobe — Atelier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- ===== Cover / Login ===== -->
+  <section id="login" class="cover">
+    <div class="cover-inner">
+      <div class="rule-row"><span class="hair"></span><span class="kicker">Issue Nº 01 — Atelier Edition</span><span class="hair"></span></div>
+      <h1 class="cover-title">Wardrobe</h1>
+      <p class="cover-sub">A personal atelier, dressed by machine &amp; <em>observed</em> in full.</p>
+      <form id="login-form" class="cover-form">
+        <div class="field">
+          <label for="username">Name</label>
+          <input id="username" type="text" autocomplete="username" placeholder="admin" />
+        </div>
+        <div class="field">
+          <label for="password">Passphrase</label>
+          <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+        </div>
+        <button type="submit" class="stamp">Enter the atelier &nbsp;→</button>
+        <div id="login-error" class="error"></div>
+      </form>
+      <div class="cover-foot kicker">Local model · Grafana Cloud AI Observability</div>
+    </div>
+  </section>
+
+  <!-- ===== App ===== -->
+  <div id="app" class="hidden">
+    <header class="masthead">
+      <div class="masthead-left">
+        <div class="brand">Wardrobe</div>
+        <div class="kicker brand-sub">The Atelier, Observed</div>
+      </div>
+      <div class="masthead-right">
+        <span id="telemetry-badge" class="onair" title="Sigil / OTel export status"></span>
+        <span id="model-badge" class="chip"></span>
+        <button id="logout" class="link">Sign out</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- Closet -->
+      <section class="spread">
+        <div class="section-head">
+          <div>
+            <div class="kicker">Section I</div>
+            <h2 class="section-title">The Closet</h2>
+          </div>
+          <div class="section-aside">
+            <span id="item-count" class="tally"></span>
+            <button id="toggle-add" class="link">+ Catalogue an item</button>
+          </div>
+        </div>
+
+        <form id="add-form" class="add-form hidden">
+          <input name="name" placeholder="Name — e.g. Red Flannel Shirt" required />
+          <select name="type">
+            <option value="top">top</option>
+            <option value="bottom">bottom</option>
+            <option value="outerwear">outerwear</option>
+            <option value="shoes">shoes</option>
+            <option value="accessory">accessory</option>
+          </select>
+          <input name="color" placeholder="Colour" />
+          <input name="season" placeholder="Season" />
+          <input name="formality" placeholder="Formality" />
+          <input name="material" placeholder="Material" />
+          <input name="notes" placeholder="Notes" />
+          <button type="submit" class="stamp sm">Add to catalogue</button>
+        </form>
+
+        <div id="catalog" class="catalog"></div>
+      </section>
+
+      <!-- Studio -->
+      <section class="spread studio">
+        <div class="section-head">
+          <div>
+            <div class="kicker">Section II</div>
+            <h2 class="section-title">The Studio</h2>
+          </div>
+        </div>
+
+        <div class="studio-bar">
+          <div class="segmented" id="mode-seg" role="tablist">
+            <button type="button" class="seg active" data-mode="outfit">The Stylist</button>
+            <button type="button" class="seg" data-mode="shopping">The Buyer</button>
+          </div>
+          <label class="research-toggle" title="Fan out to the 3 research sub-agents on this turn">
+            <input type="checkbox" id="deep-research" /> Deep research each turn
+          </label>
+        </div>
+
+        <p id="mode-desc" class="feature-desc mode-desc"></p>
+
+        <div id="chat" class="chat">
+          <div class="thread" id="thread-outfit"></div>
+          <div class="thread hidden" id="thread-shopping"></div>
+        </div>
+
+        <form id="composer" class="composer">
+          <input id="composer-input" autocomplete="off"
+                 placeholder="Describe the occasion — e.g. dinner date, office, weekend" />
+          <button type="submit" class="stamp" id="composer-send">Send</button>
+        </form>
+      </section>
+    </main>
+
+    <footer class="colophon">
+      <span class="hair"></span>
+      <p class="kicker">Every turn is recorded as Sigil generations. Each orchestrator
+        (<em>outfit-builder</em>, <em>shopping-assistant</em>) fans out to three research
+        sub-agents (<em>palette-analyst</em>, <em>occasion-decoder</em>, <em>silhouette-planner</em>
+        / <em>gap-auditor</em>, <em>trend-advisor</em>, <em>value-strategist</em>) plus a
+        <em>*-judge</em> — explore the dependency graph in Grafana Cloud AI Observability.</p>
+    </footer>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

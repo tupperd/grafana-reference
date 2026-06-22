@@ -1,0 +1,13 @@
+# Secrets / local config
+.env
+
+# Data
+data/*.db
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
