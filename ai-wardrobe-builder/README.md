@@ -1,6 +1,6 @@
 # Wardrobe AI 👔🛍️
 
-A small, fully local wardrobe-builder web app whose real purpose is to **learn Grafana Cloud AI Observability (Sigil) hands-on**. You catalog your clothes, then two AI features (powered by a local Ollama model — except the Buyer's alternating "safe" turns, which are deterministic and skip the model; see the `pairs_with` demo below) reason over them, and **every LLM call is recorded as a Sigil generation** so you can explore conversations, tokens/cost, latency, traces, and **evaluations** in Grafana Cloud.
+A small, fully local wardrobe-builder web app whose real purpose is to **learn Grafana Cloud AI Observability (Sigil) hands-on**. You catalog your clothes, then two AI features (powered by a local Ollama model) reason over them, and **every LLM call is recorded as a Sigil generation** so you can explore conversations, tokens/cost, latency, traces, and **evaluations** in Grafana Cloud.
 
 > The LLM and the app run entirely on your machine. The only thing that leaves is telemetry, sent to your Grafana Cloud stack.
 
